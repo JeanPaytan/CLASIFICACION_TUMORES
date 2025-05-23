@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Clasificador de Tumores Cerebrales</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      color: #111827;
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    img {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+    }
+
+    #output {
+      margin-top: 20px;
+      font-size: 1rem;
+      color: #374151;
+      text-align: left;
+    }
+
+    ul {
+      padding-left: 20px;
+      text-align: left;
+    }
+
+    strong {
+      color: #111827;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Clasificador de Tumores Cerebrales</h1>
+    <input type="file" id="file-input" accept="image/*" />
+    <div id="output">Cargando modelo...</div>
+    <img id="preview" style="display: none;" />
+  </div>
+
+  <script>
+    const classes = ['Glioma', 'Meningioma', 'No Tumor', 'Pituitaria'];
+    let model;
+
+    async function loadModel() {
+      try {
+        model = await tf.loadLayersModel('./modelo_web/model.json');
+        document.getElementById('output').innerText = "Modelo cargado. Carga una imagen.";
+        console.log("Modelo cargado.");
+      } catch (error) {
+        document.getElementById('output').innerText = "Error al cargar el modelo.";
+        console.error(error);
+      }
+    }
+
+    function preprocessImage(image) {
+      return tf.tidy(() => {
+        return tf.browser.fromPixels(image)
+          .resizeNearestNeighbor([150, 150])
+          .toFloat()
+          .div(255.0)
+          .expandDims();
+      });
+    }
+
+    document.getElementById('file-input').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+
+      img.onload = async () => {
+        const tensor = preprocessImage(img);
+        const prediction = await model.predict(tensor).data();
+        tensor.dispose();
+
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const className = classes[maxIndex];
+
+        let resultHTML = `<p><strong>Predicción:</strong> ${className}</p>`;
+        resultHTML += '<p><strong>Probabilidades:</strong></p><ul>';
+        prediction.forEach((prob, i) => {
+          resultHTML += `<li>${classes[i]}: ${(prob * 100).toFixed(2)}%</li>`;
+        });
+        resultHTML += '</ul>';
+
+        document.getElementById('output').innerHTML = resultHTML;
+      };
+    });
+
+    loadModel();
+  </script>
+</body>
+</html>
