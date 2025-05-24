@@ -43,6 +43,21 @@
       margin-bottom: 20px;
     }
 
+    button {
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1d4ed8;
+    }
+
     img {
       margin-top: 20px;
       max-width: 100%;
@@ -71,6 +86,7 @@
   <div class="card">
     <h1>Clasificador de Tumores Cerebrales</h1>
     <input type="file" id="file-input" accept="image/*" />
+    <button id="predict-btn">Predecir</button>
     <div id="output">Cargando modelo...</div>
     <img id="preview" style="display: none;" />
   </div>
@@ -100,31 +116,39 @@
       });
     }
 
+    let imgElement = document.getElementById('preview');
+    let imageLoaded = false;
+
     document.getElementById('file-input').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
 
-      const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(file);
-      img.style.display = 'block';
+      imgElement.src = URL.createObjectURL(file);
+      imgElement.style.display = 'block';
+      imageLoaded = true;
+    });
 
-      img.onload = async () => {
-        const tensor = preprocessImage(img);
-        const prediction = await model.predict(tensor).data();
-        tensor.dispose();
+    document.getElementById('predict-btn').addEventListener('click', async () => {
+      if (!imageLoaded) {
+        document.getElementById('output').innerText = "Por favor carga una imagen primero.";
+        return;
+      }
 
-        const maxIndex = prediction.indexOf(Math.max(...prediction));
-        const className = classes[maxIndex];
+      const tensor = preprocessImage(imgElement);
+      const prediction = await model.predict(tensor).data();
+      tensor.dispose();
 
-        let resultHTML = `<p><strong>Predicción:</strong> ${className}</p>`;
-        resultHTML += '<p><strong>Probabilidades:</strong></p><ul>';
-        prediction.forEach((prob, i) => {
-          resultHTML += `<li>${classes[i]}: ${(prob * 100).toFixed(2)}%</li>`;
-        });
-        resultHTML += '</ul>';
+      const maxIndex = prediction.indexOf(Math.max(...prediction));
+      const className = classes[maxIndex];
 
-        document.getElementById('output').innerHTML = resultHTML;
-      };
+      let resultHTML = `<p><strong>Predicción:</strong> ${className}</p>`;
+      resultHTML += '<p><strong>Probabilidades:</strong></p><ul>';
+      prediction.forEach((prob, i) => {
+        resultHTML += `<li>${classes[i]}: ${(prob * 100).toFixed(2)}%</li>`;
+      });
+      resultHTML += '</ul>';
+
+      document.getElementById('output').innerHTML = resultHTML;
     });
 
     loadModel();
